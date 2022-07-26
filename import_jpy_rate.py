@@ -3,12 +3,13 @@ from datetime import datetime
 import requests
 from mongodb import insert_many_jpy_rate, get_last_jpy_rate
 
+
 # first import japan yen exchange rate from european cental bank
 # download https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/jpy.xml
 # https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/eurofxref-graph-jpy.en.html
 
-#jpyecb = requests.get("https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/jpy.xml")
-#open("jpy_exchange_rate_historical.xml", "wb").write(jpyecb.content)
+jpyecb = requests.get("https://www.ecb.europa.eu/stats/policy_and_exchange_rates/euro_reference_exchange_rates/html/jpy.xml")
+open("jpy_exchange_rate_historical.xml", "wb").write(jpyecb.content)
 
 jpy = None
 with open("jpy_exchange_rate_historical.xml") as jpyxml:
