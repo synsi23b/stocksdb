@@ -1,2 +1,6 @@
-pymongo
-dotenv
+#pymongo
+#dnspython
+pymongo[srv]
+python-dotenv
+xmltodict
+requests
