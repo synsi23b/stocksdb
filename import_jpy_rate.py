@@ -16,7 +16,7 @@ with open("jpy_exchange_rate_historical.xml") as jpyxml:
     jpy = xmltodict.parse(jpyxml.read())
 
 
-MINYEAR = datetime(year=2019, month=12, day=31)
+MINYEAR = datetime(year=2018, month=12, day=31)
 try:
     mininsert = get_last_jpy_rate()["date"]
     print(f"Last known jpy rate value {mininsert}")

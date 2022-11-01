@@ -37,7 +37,7 @@ def upsert_stock_transactions(key, stocks_list):
     db = get_db()
     ops = [ pymongo.UpdateOne({key: x[key]}, {'$set': x}, upsert=True) for x in stocks_list ]
     res = db["transactions"].bulk_write(ops)
-    print(res)
+    check_res(res)
 
 
 def get_all_transactions():
@@ -52,5 +52,6 @@ def replace_collection(name, new_objs):
 
 
 if __name__ == "__main__":
-    date = get_last_jpy_rate()["date"]
-    print(date)
+    #date = get_last_jpy_rate()["date"]
+    db = get_db()
+    print(db.command({'buildInfo':1})['version'])
