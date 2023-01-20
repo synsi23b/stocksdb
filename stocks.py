@@ -73,8 +73,8 @@ class LoggedFiFo:
             else:
                 # required < fifo[0].count
                 self._fifo[0].count = integer_minus(self._fifo[0].count, required)
-                required = 0
                 output.append(FifoEntry(self._fifo[0].transaction_id, self._fifo[0].aqusition_date, required, self._fifo[0].price))
+                required = 0
                 self._log.append(f" -> PART {output[-1]}")
         return output
 
@@ -90,6 +90,15 @@ class SaleTransaction:
     transaction: StockTransaction
     parts: list
 
+    def average_cost(self):
+        total_count = 0.0
+        total_cost = 0.0
+        for p in self.parts:
+            total_count += p.count
+            total_cost += p.count * p.price
+        return total_cost / total_count
+
+
 class Stock:
     def __init__(self, isin:str, name:str, currency:str):
         self.isin = isin
@@ -98,6 +107,7 @@ class Stock:
         self.position = 0.0
         self.price = 0.0
         self.price_date = datetime(1970, 1, 1)
+        self.valuation_date = datetime(1970, 1, 1)
         self.fifo = LoggedFiFo()
         self.transactions = OrderedDict()
 
@@ -117,6 +127,7 @@ class Stock:
         self.position = integer_plus(self.position, trans.count) 
         self.price = trans.price
         self.price_date = trans.execution_date
+        self.valuation_date = trans.valuation_date
         self.fifo.put(FifoEntry(trans.transaction_id, trans.execution_date, trans.count, trans.price))
 
     def buy(self, trans:StockTransaction):
@@ -124,6 +135,7 @@ class Stock:
         self.position = integer_plus(self.position, trans.count)
         self.price = trans.price
         self.price_date = trans.execution_date
+        self.valuation_date = trans.valuation_date
         self.fifo.put(FifoEntry(trans.transaction_id, trans.execution_date, trans.count, trans.price))
 
     def sell(self, trans:StockTransaction):
@@ -133,6 +145,7 @@ class Stock:
             raise ValueError(f"Selling more Stock than beeing held! Isin {self.isin} -> transaction {trans.transaction_id}")
         self.price = trans.price
         self.price_date = trans.execution_date
+        self.valuation_date = trans.valuation_date
         out = self.fifo.pop(FifoEntry(trans.transaction_id, trans.execution_date, trans.count, trans.price))
         return SaleTransaction(trans, out)
 
@@ -175,6 +188,21 @@ class Depot:
             if v.position > 0:
                 table.append([k, v.name, v.position])
         print(tabulate(table, ["ISIN", "Name", "Position"]))
+
+    def win_los_simple(self, year=None):
+        profit = 0.0
+        table = []
+        for s in self.sales:
+            trs = s.transaction
+            if year and trs.valuation_date.year != year:
+                continue
+            avgc = s.average_cost()
+            winlose = (trs.price - avgc) * trs.count
+            profit += winlose
+            table.append([trs.valuation_date, trs.name, trs.count, trs.price, avgc, f"{winlose:.3f}"])
+        print(tabulate(table, ["Valuta", "Name", "Count", "Price", "Avg Cost", "Result"]))
+        print(f"Overall Profit: {profit:.3f}")
+
 
 
 if __name__ == "__main__":
