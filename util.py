@@ -1,102 +1,65 @@
-
-ACTIONS = [
-    ("WP-Eingang", "TRANSFER"),
-    ("Ausführung ORDER Kauf", "BUY"),
-    ("Ausführung ORDER Verkauf", "SELL"),
-    ("Split im Verhältnis", "SPLIT"),
-    ("Storno WP-Eingang", "CLR_TRANSFER"),
-]
-ACTION_TRANSFER=ACTIONS[0]
-ACTION_BUY=ACTIONS[1]
-ACTION_SELL=ACTIONS[2]
-ACTION_SPLIT=ACTIONS[3]
-ACTION_CLR_TRANSFER=ACTIONS[4]
+import codecs
+from datetime import datetime
 
 
-def decode_action_flatex(trs):
-    txt = str(trs["Buchungsinformationen"])
-    for sv in ACTIONS:
-        if txt.startswith(sv[0]):
-            return sv
-    raise RuntimeError(f"Unknown Action: {txt}")
+def convert_to_utf8(src, dst):
+    BLOCKSIZE = 1048576  # or some other, desired size in bytes
+    with codecs.open(src, "r", "cp1252") as sourceFile:
+        with codecs.open(dst, "w", "utf-8") as targetFile:
+            while True:
+                contents = sourceFile.read(BLOCKSIZE)
+                if not contents:
+                    break
+                targetFile.write(contents)
 
 
-def make_new_stock_flatex(trs):
-    act = decode_action_flatex(trs)
-    if act is ACTION_BUY or act is ACTION_TRANSFER:
-        print("Create new: ", trs["Bezeichnung"])
-        cost = trs["Nominal"] * trs["Kurs"]
-        return {
-            "isin" : trs["ISIN"],
-            "name" : trs["Bezeichnung"],
-            "count": trs["Nominal"],
-            "last_price": trs["Kurs"],
-            "cost": cost,
-            "earnings": [],
-            "last_change": trs["Valuta"],
-            "history": [trs],
-            "fifo": [(trs["Nominal"], trs["Kurs"], cost)]
-        }
-    raise RuntimeError(f"Attempt to create stock from Action: {act}")
+def to_dt(trs, key, pattern):
+    trs[key] = datetime.strptime(trs[key], pattern)
 
 
-def increase_flatex(stock, trs):
-    number, price = trs["Nominal"], trs["Kurs"]
-    cost = number * price
-    stock["fifo"].append((number, price, cost))
-    stock["cost"] += cost
-    stock["count"] += number
+def to_float(trs, key):
+    trs[key] = float(trs[key].replace(",", "."))
 
 
-def decrease_flatex(stock, trs):
-    number, price = -trs["Nominal"], trs["Kurs"]
-    cost = number * price
-    stock["count"] -= number
-    fifo = stock["fifo"]
-    aqic = 0.0
-    while number > 0.0:
-        num, pr, cs = fifo.pop(0)
-        remain = num - number
-        if remain == 0.0:
-            # complete sale
-            aqic += cs
-            number = 0.0
-        elif remain > 0.0:
-            # first position bigger than sale
-            aqic += number * pr
-            number = 0.0
-            fifo.insert(0, (remain, pr, remain * pr))
-        elif remain < 0.0:
-            # first position smaller than sale
-            aqic += cs
-            number = -remain
-    print(f"SALE  {aqic} ->  {cost}")
+def to_int(trs, key):
+    trs[key] = int(trs[key])
 
 
-def clr_trans_flatex(stock, trs):
-    number, price = -trs["Nominal"], trs["Kurs"]
-    cost = number * price
-    fifo = stock["fifo"]
-    if fifo[-1] == (number, price, cost):
-        fifo.pop()
+def rename_key(trs, src, dst):
+    trs[dst] = trs[src]
+    del trs[src]
+
+
+def _to_int(a, b):
+    a, b = str(a), str(b)
+    adec, bdec = a.find("."), b.find(".")
+    adec = len(a) - adec
+    bdec = len(b) - bdec
+    a, b = a.replace(".", ""), b.replace(".", "")
+    if adec > bdec:
+        decs = adec - 1
+        b += "0" * (adec - bdec)
     else:
-        raise RuntimeError("Last in FIFO not fitting CLR IMPORT")
-    stock["count"] -= number
+        decs = bdec - 1
+        a += "0" * (bdec - adec)
+    return int(a), int(b), decs
 
 
-update_handlers_flatex = {
-    ACTION_TRANSFER : increase_flatex,
-    ACTION_BUY : increase_flatex,
-    ACTION_SELL : decrease_flatex,
-    ACTION_CLR_TRANSFER : clr_trans_flatex
-}
+def _to_float(res, decs):
+    res = str(res)
+    res = res[:-decs] + "." + res[-decs:]
+    return float(res)
 
 
-def update_flatex(stock, trs):
-    act = decode_action_flatex(trs)
-    stock["history"].append(trs)
-    stock["last_change"] = trs["Valuta"]
-    stock["last_price"] = trs["Kurs"]
-    update_handlers_flatex[act](stock, trs)
-    #stock["cost"] += trs["Nominal"] * trs["Kurs"]
-    #stock["count"] += trs["Nominal"]
+def integer_plus(a, b):
+    a, b, decs = _to_int(a, b)
+    return _to_float(a+b, decs)
+
+
+def integer_minus(a, b):
+    a, b, decs = _to_int(a, b)
+    return _to_float(a-b, decs)
+
+
+if __name__ == "__main__":
+    print(integer_plus(45.432, 101.0))

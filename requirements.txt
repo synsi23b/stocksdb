@@ -4,3 +4,4 @@ pymongo[srv]
 python-dotenv
 xmltodict
 requests
+tabulate

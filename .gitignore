@@ -125,3 +125,4 @@ dmypy.json
 
 Depotumsaetze.csv
 Depotumsaetzeutf8.csv
+*.csv
