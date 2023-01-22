@@ -1,8 +1,8 @@
 from dotenv import load_dotenv
 import pymongo
 import os
-import stocks
-
+from stocks_dataclasses import StockTransaction
+from datetime import datetime
 
 _db = None
 
@@ -25,12 +25,18 @@ def get_last_jpy_rate():
     return db["fx_eur2jpy"].find_one(sort=[("date", -1)])
 
 
+def get_eur2jpy_by_date(date:datetime):
+    db = get_db()
+    found = db["fx_eur2jpy"].find_one({"date":date})
+    return found["rate"]
+
+
 def insert_many_jpy_rate(dateratelist):
     db = get_db()
     check_res(db["fx_eur2jpy"].insert_many(dateratelist))
 
 
-def upsert_stock_transactions(stocks_list:list[stocks.StockTransaction]):
+def upsert_stock_transactions(stocks_list:list[StockTransaction]):
     db = get_db()
     ops = [ pymongo.UpdateOne({"transaction_id": x.transaction_id}, {'$set': x.to_dict()}, upsert=True) for x in stocks_list ]
     res = db["stock_transactions"].bulk_write(ops)
@@ -52,7 +58,7 @@ def get_all_depots():
 
 def get_all_stock_transactions(depot:str):
     db = get_db()
-    return [stocks.StockTransaction(**x) for x in (db["stock_transactions"].find({"depot": depot},{"_id": 0}).sort("transaction_id", 1))]
+    return [StockTransaction(**x) for x in (db["stock_transactions"].find({"depot": depot},{"_id": 0}).sort("transaction_id", 1))]
 
 
 def replace_collection(name, new_objs):

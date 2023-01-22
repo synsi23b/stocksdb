@@ -1,55 +1,21 @@
+from stocks_dataclasses import StockAction, StockTransaction
 from dataclasses import dataclass
 from datetime import datetime
-from enum import Enum
 from collections import OrderedDict
 from tabulate import tabulate
 from util import integer_minus, integer_plus
-
-
-class StockAction(Enum):
-    TRANSFER = "transfer"
-    BUY = "buy"
-    SELL = "sell"
-    SPLIT = "split"
-    CANCEL_TRANSFER = "canceled_transfer"
-
-
-@dataclass
-class StockTransaction:
-    depot: str
-    transaction_id: str
-    isin: str
-    name: str
-    action: str
-    execution_date: datetime
-    valuation_date: datetime
-    count: float
-    price: float
-    curency: str
-    original: dict
-    
-    def to_dict(self) -> dict:
-        return {
-            "depot": self.depot,
-            "transaction_id": self.transaction_id,
-            "isin": self.isin,
-            "name": self.name,
-            "action": self.action,
-            "execution_date": self.execution_date,
-            "valuation_date": self.valuation_date,
-            "count": self.count,
-            "price": self.price,
-            "curency": self.curency,
-            "original": self.original
-        }
+import xlsxwriter
+from mongodb import get_eur2jpy_by_date
 
 
 @dataclass
 class FifoEntry:
     transaction_id: str
-    aqusition_date: datetime
+    execution_date: datetime
+    valuation_date: datetime
     count: float
     price: float
+    action: str
 
 
 class LoggedFiFo:
@@ -73,7 +39,7 @@ class LoggedFiFo:
             else:
                 # required < fifo[0].count
                 self._fifo[0].count = integer_minus(self._fifo[0].count, required)
-                output.append(FifoEntry(self._fifo[0].transaction_id, self._fifo[0].aqusition_date, required, self._fifo[0].price))
+                output.append(FifoEntry(self._fifo[0].transaction_id, self._fifo[0].execution_date, self._fifo[0].valuation_date, required, self._fifo[0].price, self._fifo[0].action))
                 required = 0
                 self._log.append(f" -> PART {output[-1]}")
         return output
@@ -97,6 +63,19 @@ class SaleTransaction:
             total_count += p.count
             total_cost += p.count * p.price
         return total_cost / total_count
+    
+    def cost(self):
+        total_cost = 0.0
+        for p in self.parts:
+            total_cost += p.count * p.price
+        return total_cost
+
+    def cost_jpy(self):
+        total_cost = 0.0
+        for p in self.parts:
+            rate = get_eur2jpy_by_date(p.valuation_date)
+            total_cost += round(p.count * p.price * rate)
+        return total_cost
 
 
 class Stock:
@@ -128,7 +107,7 @@ class Stock:
         self.price = trans.price
         self.price_date = trans.execution_date
         self.valuation_date = trans.valuation_date
-        self.fifo.put(FifoEntry(trans.transaction_id, trans.execution_date, trans.count, trans.price))
+        self.fifo.put(FifoEntry(trans.transaction_id, trans.execution_date, trans.valuation_date, trans.count, trans.price, trans.action))
 
     def buy(self, trans:StockTransaction):
         self.check(trans, "buy")
@@ -136,7 +115,7 @@ class Stock:
         self.price = trans.price
         self.price_date = trans.execution_date
         self.valuation_date = trans.valuation_date
-        self.fifo.put(FifoEntry(trans.transaction_id, trans.execution_date, trans.count, trans.price))
+        self.fifo.put(FifoEntry(trans.transaction_id, trans.execution_date, trans.valuation_date, trans.count, trans.price, trans.action))
 
     def sell(self, trans:StockTransaction):
         self.check(trans, "sell")
@@ -146,22 +125,22 @@ class Stock:
         self.price = trans.price
         self.price_date = trans.execution_date
         self.valuation_date = trans.valuation_date
-        out = self.fifo.pop(FifoEntry(trans.transaction_id, trans.execution_date, trans.count, trans.price))
+        out = self.fifo.pop(FifoEntry(trans.transaction_id, trans.execution_date, trans.valuation_date, trans.count, trans.price, trans.action))
         return SaleTransaction(trans, out)
 
     def split(self, trans:StockTransaction):
         self.check(trans, "split")
         self.position = integer_plus(self.position, trans.count)
         if trans.count < 0:
-            out = self.fifo.pop(FifoEntry(trans.transaction_id, trans.execution_date, -trans.count, trans.price))
+            out = self.fifo.pop(FifoEntry(trans.transaction_id, trans.execution_date, trans.valuation_date, -trans.count, trans.price, trans.action))
         else:
-            self.fifo.put(FifoEntry(trans.transaction_id, trans.execution_date, trans.count, trans.price))
+            self.fifo.put(FifoEntry(trans.transaction_id, trans.execution_date, trans.valuation_date, trans.count, trans.price, trans.action))
             self.price = trans.price
 
     def canceled_transfer(self, trans:StockTransaction):
         self.check(trans, "canceled_transfer")
         self.position = integer_minus(self.position, trans.count)
-        self.fifo.undo(FifoEntry(trans.transaction_id, trans.execution_date, trans.count, trans.price))
+        self.fifo.undo(FifoEntry(trans.transaction_id, trans.execution_date, trans.valuation_date, trans.count, trans.price, trans.action))
 
 
 class Depot:
@@ -203,6 +182,46 @@ class Depot:
         print(tabulate(table, ["Valuta", "Name", "Count", "Price", "Avg Cost", "Result"]))
         print(f"Overall Profit: {profit:.3f}")
 
+    def sales_jpy_by_year(self, year:int):
+        wb = xlsxwriter.Workbook(f'stock_sales_{self.id}_year_{year}.xlsx')
+        sheet = wb.add_worksheet("sales")
+        row = 0
+        for sale in self.sales:
+            row = self._write_sale_row(sheet, row, sale) + 2
+        wb.close()
+
+
+    def _write_sale_row(self, sheet:xlsxwriter.Workbook.worksheet_class, row:int, sale:SaleTransaction):
+        headers = [
+            "ISIN", "Name", "Transacion", "Booking Date", "Valuation Date", "Exchange Rate", 
+            "Action", "Count", "Price EUR", "Price YEN", "Total EUR", "Total YEN",
+            "Cost EUR", "Cost YEN", "Sales Result EUR", "Sales Result YEN"
+            ]
+        sheet.write_row(row, 0, headers)
+        tr = sale.transaction
+        rate = get_eur2jpy_by_date(tr.valuation_date)
+        cost = sale.cost()
+        cost_jpy = sale.cost_jpy()
+        total = tr.count * tr.price
+        result = total - cost
+        result_jpy = round(total * rate - cost_jpy)
+        data = [
+            tr.isin, tr.name, tr.transaction_id, tr.execution_date, tr.valuation_date, rate,
+            tr.action, tr.count, tr.price, round(tr.price * rate), total, round(total * rate),
+            cost, cost_jpy, result, result_jpy
+            ]
+        row += 1
+        sheet.write_row(row, 0, data)
+        for p in sale.parts:
+            #p = FifoEntry
+            rate = get_eur2jpy_by_date(p.valuation_date)
+            data = [
+                "", "", p.transaction_id, p.execution_date, p.valuation_date, rate,
+                p.action, p.count, p.price, round(p.price * rate), p.count * p.price, round(p.count * p.price * rate)
+            ]
+            row += 1
+            sheet.write_row(row, 0, data)
+        return row
 
 
 if __name__ == "__main__":
