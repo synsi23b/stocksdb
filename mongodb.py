@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import pymongo
 import os
-from stocks_dataclasses import StockTransaction
+from mydataclasses import StockTransaction
 from datetime import datetime
 
 _db = None
@@ -40,6 +40,13 @@ def upsert_stock_transactions(stocks_list:list[StockTransaction]):
     db = get_db()
     ops = [ pymongo.UpdateOne({"transaction_id": x.transaction_id}, {'$set': x.to_dict()}, upsert=True) for x in stocks_list ]
     res = db["stock_transactions"].bulk_write(ops)
+    check_res(res)
+
+
+def upsert_cc_transactions(cc_list:list[CCTransaction]):
+    db = get_db()
+    ops = [ pymongo.UpdateOne({"transaction_id": x.transaction_id}, {'$set': x.to_dict()}, upsert=True) for x in stocks_list ]
+    res = db["cc_transactions"].bulk_write(ops)
     check_res(res)
 
 

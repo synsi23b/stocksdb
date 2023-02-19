@@ -2,9 +2,9 @@ import codecs
 from datetime import datetime
 
 
-def convert_to_utf8(src, dst):
+def convert_to_utf8(src, dst, source_encoding="cp1252"):
     BLOCKSIZE = 1048576  # or some other, desired size in bytes
-    with codecs.open(src, "r", "cp1252") as sourceFile:
+    with codecs.open(src, "r", source_encoding) as sourceFile:
         with codecs.open(dst, "w", "utf-8") as targetFile:
             while True:
                 contents = sourceFile.read(BLOCKSIZE)

@@ -41,7 +41,6 @@ def fix_values(trs):
     #to_int(trs, "TA-Nr.")
     # mongodb cant deal with keys that have a dot
     rename_key(trs, "TA-Nr.", "TA-Nr")
-    
     return trs
 
 

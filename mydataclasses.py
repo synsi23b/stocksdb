@@ -39,3 +39,10 @@ class StockTransaction:
             "curency": self.curency,
             "original": self.original
         }
+
+
+class CCAction(Enum):
+    PAY = "pay"
+    PAY_INTL = "pay_intl"
+    BALANCING = "balancing"
+    DEPOSIT = "deposit"

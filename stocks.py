@@ -1,4 +1,4 @@
-from stocks_dataclasses import StockAction, StockTransaction
+from mydataclasses import StockAction, StockTransaction
 from dataclasses import dataclass
 from datetime import datetime
 from collections import OrderedDict
