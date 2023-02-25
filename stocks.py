@@ -3,9 +3,9 @@ from dataclasses import dataclass
 from datetime import datetime
 from collections import OrderedDict
 from tabulate import tabulate
-from util import integer_minus, integer_plus
 import xlsxwriter
 from mongodb import get_eur2jpy_by_date
+from decimal import Decimal
 
 
 @dataclass
@@ -33,12 +33,12 @@ class LoggedFiFo:
         output = []
         while required > 0:
             if required >= self._fifo[0].count:
-                required = integer_minus(required, self._fifo[0].count)
+                required = required - self._fifo[0].count
                 output.append(self._fifo.pop(0))
                 self._log.append(f" -> FULL {output[-1]}")
             else:
                 # required < fifo[0].count
-                self._fifo[0].count = integer_minus(self._fifo[0].count, required)
+                self._fifo[0].count = self._fifo[0].count - required
                 output.append(FifoEntry(self._fifo[0].transaction_id, self._fifo[0].execution_date, self._fifo[0].valuation_date, required, self._fifo[0].price, self._fifo[0].action))
                 required = 0
                 self._log.append(f" -> PART {output[-1]}")
@@ -57,24 +57,24 @@ class SaleTransaction:
     parts: list
 
     def average_cost(self):
-        total_count = 0.0
-        total_cost = 0.0
+        total_count = Decimal()
+        total_cost = Decimal()
         for p in self.parts:
             total_count += p.count
             total_cost += p.count * p.price
         return total_cost / total_count
     
     def cost(self):
-        total_cost = 0.0
+        total_cost = Decimal()
         for p in self.parts:
             total_cost += p.count * p.price
         return total_cost
 
     def cost_jpy(self):
-        total_cost = 0.0
+        total_cost = Decimal()
         for p in self.parts:
             rate = get_eur2jpy_by_date(p.valuation_date)
-            total_cost += round(p.count * p.price * rate)
+            total_cost += p.count * p.price * rate
         return total_cost
 
 
@@ -83,8 +83,8 @@ class Stock:
         self.isin = isin
         self.name = name
         self.currency = currency
-        self.position = 0.0
-        self.price = 0.0
+        self.position = Decimal()
+        self.price = Decimal()
         self.price_date = datetime(1970, 1, 1)
         self.valuation_date = datetime(1970, 1, 1)
         self.fifo = LoggedFiFo()
@@ -103,7 +103,7 @@ class Stock:
 
     def transfer(self, trans:StockTransaction):
         self.check(trans, "transfer")
-        self.position = integer_plus(self.position, trans.count) 
+        self.position = self.position + trans.count
         self.price = trans.price
         self.price_date = trans.execution_date
         self.valuation_date = trans.valuation_date
@@ -111,7 +111,7 @@ class Stock:
 
     def buy(self, trans:StockTransaction):
         self.check(trans, "buy")
-        self.position = integer_plus(self.position, trans.count)
+        self.position = self.position + trans.count
         self.price = trans.price
         self.price_date = trans.execution_date
         self.valuation_date = trans.valuation_date
@@ -119,7 +119,7 @@ class Stock:
 
     def sell(self, trans:StockTransaction):
         self.check(trans, "sell")
-        self.position = integer_minus(self.position, trans.count)
+        self.position = self.position - trans.count
         if self.position < 0:
             raise ValueError(f"Selling more Stock than beeing held! Isin {self.isin} -> transaction {trans.transaction_id}")
         self.price = trans.price
@@ -130,7 +130,7 @@ class Stock:
 
     def split(self, trans:StockTransaction):
         self.check(trans, "split")
-        self.position = integer_plus(self.position, trans.count)
+        self.position = self.position + trans.count
         if trans.count < 0:
             out = self.fifo.pop(FifoEntry(trans.transaction_id, trans.execution_date, trans.valuation_date, -trans.count, trans.price, trans.action))
         else:
@@ -139,7 +139,7 @@ class Stock:
 
     def canceled_transfer(self, trans:StockTransaction):
         self.check(trans, "canceled_transfer")
-        self.position = integer_minus(self.position, trans.count)
+        self.position = self.position - trans.count
         self.fifo.undo(FifoEntry(trans.transaction_id, trans.execution_date, trans.valuation_date, trans.count, trans.price, trans.action))
 
 
@@ -153,6 +153,8 @@ class Depot:
     def exec(self, trans:StockTransaction):
         if trans.transaction_id in self.transactions:
             raise ValueError(f"Transaction {trans.transaction_id} already applied to depot {self.id}")
+        trans.count = trans.count.to_decimal()
+        trans.price = trans.price.to_decimal()
         self.transactions[trans.transaction_id] = trans
         if trans.isin not in self.stocks:
             self.stocks[trans.isin] = Stock(trans.isin, trans.name, trans.curency)
@@ -169,7 +171,7 @@ class Depot:
         print(tabulate(table, ["ISIN", "Name", "Position"]))
 
     def win_los_simple(self, year=None):
-        profit = 0.0
+        profit = Decimal()
         table = []
         for s in self.sales:
             trs = s.transaction
@@ -178,8 +180,14 @@ class Depot:
             avgc = s.average_cost()
             winlose = (trs.price - avgc) * trs.count
             profit += winlose
-            table.append([trs.valuation_date, trs.name, trs.count, trs.price, avgc, f"{winlose:.3f}"])
-        print(tabulate(table, ["Valuta", "Name", "Count", "Price", "Avg Cost", "Result"]))
+            sale, cost = trs.price * trs.count, avgc * trs.count
+            total = f"{cost:.1f} -> {sale:.1f}"
+            if sale > cost:
+                perc = f"{((sale / cost) - Decimal(1.0)) * 100:.2f}%"
+            else:
+                perc = f"-{(Decimal(1.0) - (sale / cost)) * 100:.2f}%"
+            table.append([trs.valuation_date, trs.name, trs.count, trs.price, avgc, f"{winlose:.3f}", total, perc])
+        print(tabulate(table, ["Valuta", "Name", "Count", "Price", "Avg Cost", "Result", "Total", "Percent"]))
         print(f"Overall Profit: {profit:.3f}")
 
     def sales_jpy_by_year(self, year:int):
@@ -204,10 +212,10 @@ class Depot:
         cost_jpy = sale.cost_jpy()
         total = tr.count * tr.price
         result = total - cost
-        result_jpy = round(total * rate - cost_jpy)
+        result_jpy = total * rate - cost_jpy
         data = [
             tr.isin, tr.name, tr.transaction_id, tr.execution_date, tr.valuation_date, rate,
-            tr.action, tr.count, tr.price, round(tr.price * rate), total, round(total * rate),
+            tr.action, tr.count, tr.price, tr.price * rate, total, total * rate,
             cost, cost_jpy, result, result_jpy
             ]
         row += 1
@@ -217,7 +225,7 @@ class Depot:
             rate = get_eur2jpy_by_date(p.valuation_date)
             data = [
                 "", "", p.transaction_id, p.execution_date, p.valuation_date, rate,
-                p.action, p.count, p.price, round(p.price * rate), p.count * p.price, round(p.count * p.price * rate)
+                p.action, p.count, p.price, p.price * rate, p.count * p.price, p.count * p.price * rate
             ]
             row += 1
             sheet.write_row(row, 0, data)

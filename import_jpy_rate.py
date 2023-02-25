@@ -1,7 +1,8 @@
 import xmltodict
 from datetime import datetime
 import requests
-from mongodb import insert_many_jpy_rate, get_last_jpy_rate
+from mongodb import upsert_many_jpy_rate, create_bson_decimal
+import decimal
 
 
 def import_rates():
@@ -18,25 +19,27 @@ def import_rates():
         jpy = xmltodict.parse(jpyxml.read())
 
     MINYEAR = datetime(year=2018, month=12, day=31)
-    try:
-        mininsert = get_last_jpy_rate()["date"]
-    except:
-        mininsert = MINYEAR
-        print("no mininsert value! Using default")
-    print(f"Last known jpy rate value {mininsert}")
+    # try:
+    #     mininsert = get_last_jpy_rate()["date"]
+    # except:
+    #     mininsert = MINYEAR
+    #     print("no mininsert value! Using default")
+    # print(f"Last known jpy rate value {mininsert}")
+    mininsert = MINYEAR
 
     dateratelist = []
     for dailyrate in jpy["CompactData"]["DataSet"]["Series"]["Obs"]:
         # print(dailyrate)
         date = datetime.strptime(dailyrate["@TIME_PERIOD"], "%Y-%m-%d")
-        # ignore very old or existing data
+        # ignore very old data
         if date <= mininsert:
             continue
         # build ratelist objects
         dateratelist.append(
-            {"date": date, "rate": float(dailyrate["@OBS_VALUE"])})
+            {"date": date, "rate": create_bson_decimal(dailyrate["@OBS_VALUE"])})
+        
     if dateratelist:
-        insert_many_jpy_rate(dateratelist)
+        upsert_many_jpy_rate(dateratelist)
     else:
         print("no update to euro jpy rate")
 

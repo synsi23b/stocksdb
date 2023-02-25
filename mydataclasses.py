@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 from enum import Enum
 from datetime import datetime
-
+import decimal
 
 class StockAction(Enum):
     TRANSFER = "transfer"
@@ -20,8 +20,8 @@ class StockTransaction:
     action: str
     execution_date: datetime
     valuation_date: datetime
-    count: float
-    price: float
+    count: decimal
+    price: decimal
     curency: str
     original: dict
     
@@ -46,3 +46,14 @@ class CCAction(Enum):
     PAY_INTL = "pay_intl"
     BALANCING = "balancing"
     DEPOSIT = "deposit"
+
+
+@dataclass
+class CCTransaction:
+    cardnum: str
+    action: str
+    execution_date: datetime
+    valuation_date: datetime
+    value: decimal
+    curency: str
+    original: dict

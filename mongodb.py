@@ -1,10 +1,14 @@
 from dotenv import load_dotenv
 import pymongo
 import os
-from mydataclasses import StockTransaction
+from mydataclasses import StockTransaction, CCTransaction
 from datetime import datetime
+from bson import Decimal128, decimal128
+import decimal
+
 
 _db = None
+_decimal128_ctx = decimal128.create_decimal128_context()
 
 
 def get_db():
@@ -14,6 +18,22 @@ def get_db():
         client = pymongo.MongoClient(os.getenv('MONGOCON'))
         _db = client.get_database("finance")
     return _db
+
+
+def get_decimal_ctx():
+    return decimal.localcontext(_decimal128_ctx)
+
+
+def create_decimal(val) -> decimal:
+    with get_decimal_ctx() as c:
+        return c.create_decimal(val)
+    
+
+def create_bson_decimal(val) -> Decimal128:
+    if type(val) == Decimal128:
+        return Decimal128(val)
+    else:
+        return Decimal128(create_decimal(val))
 
 
 def check_res(res):
@@ -28,12 +48,14 @@ def get_last_jpy_rate():
 def get_eur2jpy_by_date(date:datetime):
     db = get_db()
     found = db["fx_eur2jpy"].find_one({"date":date})
-    return found["rate"]
+    return found["rate"].to_decimal()
 
 
-def insert_many_jpy_rate(dateratelist):
+def upsert_many_jpy_rate(dateratelist):
     db = get_db()
-    check_res(db["fx_eur2jpy"].insert_many(dateratelist))
+    ops = [ pymongo.UpdateOne({"date": x["date"]}, {'$set': x}, upsert=True) for x in dateratelist ]
+    res = db["fx_eur2jpy"].bulk_write(ops)
+    check_res(res)
 
 
 def upsert_stock_transactions(stocks_list:list[StockTransaction]):
@@ -45,7 +67,7 @@ def upsert_stock_transactions(stocks_list:list[StockTransaction]):
 
 def upsert_cc_transactions(cc_list:list[CCTransaction]):
     db = get_db()
-    ops = [ pymongo.UpdateOne({"transaction_id": x.transaction_id}, {'$set': x.to_dict()}, upsert=True) for x in stocks_list ]
+    ops = [ pymongo.UpdateOne({"transaction_id": x.transaction_id}, {'$set': x.to_dict()}, upsert=True) for x in cc_list ]
     res = db["cc_transactions"].bulk_write(ops)
     check_res(res)
 
