@@ -2,6 +2,7 @@ from util import to_dt, to_decimal, to_int, rename_key
 from csv import DictReader
 from stocks import StockAction, StockTransaction
 from mongodb import create_bson_decimal
+from bson import ObjectId
 
 
 def load_transactions(infile):
@@ -36,8 +37,8 @@ def load_transactions(infile):
 def fix_values(trs):
     to_dt(trs, "Buchtag", "%d.%m.%Y")
     to_dt(trs, "Valuta", "%d.%m.%Y")
-    to_decimal(trs, "Nominal")
-    to_decimal(trs, "Kurs")
+    to_decimal(trs, "Nominal", True)
+    to_decimal(trs, "Kurs", True)
     #to_int(trs, "Nummer")
     #to_int(trs, "TA-Nr.")
     # mongodb cant deal with keys that have a dot

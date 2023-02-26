@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import pymongo
 import os
-from mydataclasses import StockTransaction, CCTransaction
+from mydataclasses import StockTransaction, CCTransaction, WiseTransaction
 from datetime import datetime
 from bson import Decimal128, decimal128
 import decimal
@@ -40,6 +40,10 @@ def check_res(res):
     print(res, f"was acknowledged: {res.acknowledged}")
 
 
+def check_res_uspert(res):
+    print(res, f"\nwas acknowledged: {res.acknowledged}\nnMatched: {res.matched_count}\nnUpserted: {res.upserted_count}\nnModified: {res.modified_count}")
+
+
 def get_last_jpy_rate():
     db = get_db()
     return db["fx_eur2jpy"].find_one(sort=[("date", -1)])
@@ -55,21 +59,35 @@ def upsert_many_jpy_rate(dateratelist):
     db = get_db()
     ops = [ pymongo.UpdateOne({"date": x["date"]}, {'$set': x}, upsert=True) for x in dateratelist ]
     res = db["fx_eur2jpy"].bulk_write(ops)
-    check_res(res)
+    check_res_uspert(res)
 
 
 def upsert_stock_transactions(stocks_list:list[StockTransaction]):
     db = get_db()
     ops = [ pymongo.UpdateOne({"transaction_id": x.transaction_id}, {'$set': x.to_dict()}, upsert=True) for x in stocks_list ]
     res = db["stock_transactions"].bulk_write(ops)
-    check_res(res)
+    check_res_uspert(res)
+
+
+def upsert_wise_transactions(wise_list:list[WiseTransaction]):
+    db = get_db()
+    ops = [ pymongo.UpdateOne({"transaction_id": x.transaction_id, "currency": x.currency}, {'$set': x.to_dict()}, upsert=True) for x in wise_list ]
+    res = db["wise_transactions"].bulk_write(ops)
+    check_res_uspert(res)
+
+
+def insert_transactions_infile(filename):
+    with open(filename, "r") as inf:
+        data = inf.read()
+    db = get_db()
+    db["inputfiles"].insert_one({"_id": filename, "content": data})
 
 
 def upsert_cc_transactions(cc_list:list[CCTransaction]):
     db = get_db()
-    ops = [ pymongo.UpdateOne({"transaction_id": x.transaction_id}, {'$set': x.to_dict()}, upsert=True) for x in cc_list ]
+    ops = [ pymongo.UpdateOne({"inputfile": x.inputfile, "index": x.index}, {'$set': x.to_dict()}, upsert=True) for x in cc_list ]
     res = db["cc_transactions"].bulk_write(ops)
-    check_res(res)
+    check_res_uspert(res)
 
 
 def get_all_depots():
@@ -90,6 +108,26 @@ def get_all_stock_transactions(depot:str):
     return [StockTransaction(**x) for x in (db["stock_transactions"].find({"depot": depot},{"_id": 0}).sort("transaction_id", 1))]
 
 
+def get_transactions_wise(currency:str, year:int, action:str):
+    db = get_db()
+    match = {
+        'currency': currency, 
+        'action': action,
+        '$and': [
+            {
+                'date': {
+                    '$gte': datetime(year, 1, 1)
+                }
+            }, {
+                'date': {
+                    '$lte': datetime(year, 12, 31)
+                }
+            }
+        ]
+    }
+    return [WiseTransaction(**x) for x in (db["wise_transactions"].find(match,{"_id": 0}).sort("date", 1))]
+
+
 def replace_collection(name, new_objs):
     db = get_db()
     db.drop_collection(name)
@@ -100,4 +138,5 @@ if __name__ == "__main__":
     #date = get_last_jpy_rate()["date"]
     db = get_db()
     #print(db.command({'buildInfo':1})['version'])
-    print(get_all_depots())
+    #print(get_all_depots())
+    print(get_transactions_wise("EUR", 2022))

@@ -18,8 +18,12 @@ def to_dt(trs, key, pattern):
     trs[key] = datetime.strptime(trs[key], pattern)
 
 
-def to_decimal(trs, key):
-    trs[key] = create_bson_decimal(trs[key].replace(",", "."))
+def to_decimal(trs, key, is_german):
+    if is_german:
+        trs[key] = create_bson_decimal(trs[key].replace(".", "").replace(",", "."))
+    else:
+        trs[key] = create_bson_decimal(trs[key])
+    return trs[key]
 
 
 def to_int(trs, key):

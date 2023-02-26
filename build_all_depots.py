@@ -9,7 +9,7 @@ for name in get_all_depots():
             dep.exec(tr)
         print("-"*20)
         print(dep.id)
-        #dep.current_holdings()
+        dep.current_holdings()
         dep.win_los_simple(2022)
         dep.sales_jpy_by_year(2022)
 
