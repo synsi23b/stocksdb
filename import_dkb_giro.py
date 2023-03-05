@@ -5,7 +5,7 @@ import dkb_util
 infile = "dkb_giro_export_1018533461_01.08.2020_30.01.2023.csv"
 utf8f = "dkb_giro_export_1018533461_01.08.2020_30.01.2023_utf8.csv"
 
-convert_to_utf8("Depotumsaetze.csv", utf8f)
+convert_to_utf8(infile, utf8f)
 insert_transactions_infile(utf8f)
 
 #transactions = dkb_util.load_transactions(utf8f)

@@ -63,17 +63,17 @@ class Transfer:
 
 
 def make_xlsx(filename, itemlist):
-    wb = xlsxwriter.Workbook(filename)
-    ws = wb.add_worksheet()
-    ws.write_row(0, 0, itemlist[0].get_header())
-    for idx, item in enumerate(itemlist):
-        ws.write_row(idx + 1, 0, item.to_list())
-    wb.close()
-
+    if itemlist:
+        wb = xlsxwriter.Workbook(filename)
+        ws = wb.add_worksheet()
+        ws.write_row(0, 0, itemlist[0].get_header())
+        for idx, item in enumerate(itemlist):
+            ws.write_row(idx + 1, 0, item.to_list())
+        wb.close()
 
 
 expendit_headers = [
-    "発生日",        # Accural Date
+    "発生日",        # Accrual Date
     #"決済期日",      # Settlement Date
     "収支区分",      # category
     "取引先",       # Client
@@ -84,8 +84,11 @@ expendit_headers = [
     "備考",         # Remarks
 ]
 
-EXP_COMMISSION_PAID = "支払手数料"
 
+EXP_COMMISSION_PAID = "支払手数料"
+EXP_OWNER_LOAN = "事業主貸"
+EXP_MISC = "雑費"
+EXP_FX_LOSS = "為替差損"
 
 @dataclass
 class Expenditure:
@@ -102,6 +105,36 @@ class Expenditure:
 
     def to_list(self):
         header = [ self.date.strftime("%Y-%m-%d"), "支出" ]
+        center = [
+            self.client,
+            self.category,
+            self.account,
+            self.amount,
+            self.tax_segment
+        ]
+        footer = [ self.remarks ]
+        return header + center + footer
+    
+
+INC_ONWER_LOAN = "事業主借"
+INC_MISC = "雑収入"
+INC_FX_GAIN = "為替差益"
+
+@dataclass
+class Income:
+    date: datetime
+    client: str
+    category: str
+    account: str
+    amount: Decimal
+    tax_segment: str
+    remarks: str
+
+    def get_header(self):
+        return expendit_headers
+
+    def to_list(self):
+        header = [ self.date.strftime("%Y-%m-%d"), "収入" ]
         center = [
             self.client,
             self.category,

@@ -2,7 +2,7 @@ from dotenv import load_dotenv
 import pymongo
 import os
 from mydataclasses import StockTransaction, CCTransaction, WiseTransaction
-from datetime import datetime
+from datetime import datetime, timedelta
 from bson import Decimal128, decimal128
 import decimal
 
@@ -52,7 +52,10 @@ def get_last_jpy_rate():
 def get_eur2jpy_by_date(date:datetime):
     db = get_db()
     found = db["fx_eur2jpy"].find_one({"date":date})
-    return found["rate"].to_decimal()
+    if found:
+        return found["rate"].to_decimal()
+    # maybe weekend, go back one day
+    return get_eur2jpy_by_date(date - timedelta(days=1))
 
 
 def upsert_many_jpy_rate(dateratelist):
@@ -126,6 +129,35 @@ def get_transactions_wise(currency:str, year:int, action:str):
         ]
     }
     return [WiseTransaction(**x) for x in (db["wise_transactions"].find(match,{"_id": 0}).sort("date", 1))]
+
+
+def get_transactions_cc(cardnum:str, year:int, action:str):
+    return get_transactions_cc_range(cardnum, datetime(year, 1, 1), datetime(year, 12, 31), action)
+    
+
+def get_transactions_cc_range(cardnum:str, frm:datetime, to:datetime, action:str):
+    db = get_db()
+    match = {
+        'cardnum': cardnum, 
+        '$and': [
+            {
+                'execution_date': {
+                    '$gte': frm
+                }
+            }, {
+                'execution_date': {
+                    '$lte': to
+                }
+            }
+        ]
+    }
+    if action:
+        match["action"] = action
+    res = [CCTransaction(**x) for x in (db["cc_transactions"].find(match,{"_id": 0}).sort("execution_date", 1))]
+    for trans in res:
+        trans.value = trans.value.to_decimal()
+        trans.foreign_value = trans.foreign_value.to_decimal()
+    return res
 
 
 def replace_collection(name, new_objs):
