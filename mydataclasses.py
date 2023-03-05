@@ -80,6 +80,53 @@ class CCTransaction:
         }
 
 
+class GiroAction(Enum):
+    CC_BALANCING = "cc_balancing"
+    CLOSING = "closing"
+    DEBIT_CARD_PAY_INTL = "debitcard_intl"
+    DEBIT_CARD_PAY = "debitcard"
+    TRANSFER_IN = "transfer_in"
+    TRANSFER_OUT = "transfer_out"
+
+
+@dataclass
+class GiroTransaction:
+    inputfile: str
+    index: int
+    account: str
+    action: str
+    transaction_counterpart: str
+    transaction_account: str
+    transaction_bank: str
+    description: str
+    execution_date: datetime
+    valuation_date: datetime
+    value: Decimal
+    curency: str
+    foreign_value: Decimal
+    foreign_currency: str
+    original: dict
+
+    def to_dict(self) -> dict:
+        return {
+            "inputfile": self.inputfile,
+            "index": self.index,
+            "account": self.account,
+            "action": self.action,
+            "transaction_counterpart": self.transaction_counterpart,
+            "transaction_account": self.transaction_account,
+            "transaction_bank": self.transaction_bank,
+            "description": self.description,
+            "execution_date": self.execution_date,
+            "valuation_date": self.valuation_date,
+            "value": self.value,
+            "curency": self.curency,
+            "foreign_value": self.foreign_value,
+            "foreign_currency": self.foreign_currency,
+            "original": self.original
+        }
+    
+
 class WiseAction(Enum):
     CONVERSION = "conversion"
     TOP_UP = "top_up"

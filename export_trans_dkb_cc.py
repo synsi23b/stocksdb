@@ -14,8 +14,7 @@ starting_date = datetime(year, 1, 1)
 starting_balance = Decimal(-132995)
 CARD = "dkb_kredit_4930_9825"
 CREDITACCOUNT = "DKB Credit Card 9825ドイツのクレジットカード"
-balancing = get_transactions_cc(CARD, year, "balancing")
-
+balancing = get_transactions_cc(CARD, year, ["balancing"])
 
 
 def normalize(trans:CCTransaction) -> CCTransaction:
@@ -28,28 +27,7 @@ def normalize(trans:CCTransaction) -> CCTransaction:
 
 
 def get_actions_range(frm, to, actionlist):
-    res = []
-    for act in actionlist:
-        res += get_transactions_cc_range(CARD, frm, to, act)
-    return [ normalize(t) for t in res ]
-
-
-# debit = RECEIVER
-debit = freee_util.TransferDetail(
-    CREDITACCOUNT,
-    "",
-    Decimal(),
-    freee_util.TAX_NA,
-    Decimal())
-
-
-# credit = SENDER
-credit = freee_util.TransferDetail(
-    "Deutsche Kreditbank AG ドイツの銀行 EUR",
-    "",
-    Decimal(),
-    freee_util.TAX_NA,
-    Decimal())
+    return [ normalize(t) for t in get_transactions_cc_range(CARD, frm, to, actionlist) ]
 
 
 balances = []
@@ -76,13 +54,10 @@ for bal in balancing:
     for trs in get_actions_range(loop_start_date, accrual, ["deposit"]):
         value = trs.foreign_value
         balance += value
-        debit.amount = value
-        credit.amount = value
-        tr = freee_util.Transfer(
-            trs.execution_date,
-            debit, credit,
+        deposits.append(freee_util.income_private(
+            trs.execution_date, "", CREDITACCOUNT, value, 
             f"{trs.description}  {trs.value} EUR @ {get_eur2jpy_by_date(trs.execution_date)}")
-        deposits.append(deepcopy(tr))
+            )
 
     balances.append(freee_util.Income(
         accrual, "VOELKER JOHANNES STEFAN", freee_util.INC_ONWER_LOAN,
@@ -111,6 +86,6 @@ for bal in balancing:
     loop_start_date = accrual + timedelta(days=1)
 
 fname = f"_dkb_cc_{starting_date.date()}-{accrual.date()}.xlsx"
-freee_util.make_xlsx("export_credit_dkb/expend" + fname, spending)
-freee_util.make_xlsx("export_credit_dkb/deposit" + fname, deposits)
-freee_util.make_xlsx(f"export_credit_dkb/cc_balancing_{year}.xlsx", balances)
+freee_util.make_xlsx("mongoexport/expend" + fname, spending)
+freee_util.make_xlsx("mongoexport/deposit" + fname, deposits)
+freee_util.make_xlsx(f"mongoexport/cc_balancing_{year}.xlsx", balances)

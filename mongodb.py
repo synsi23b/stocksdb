@@ -1,7 +1,7 @@
 from dotenv import load_dotenv
 import pymongo
 import os
-from mydataclasses import StockTransaction, CCTransaction, WiseTransaction
+from mydataclasses import StockTransaction, CCTransaction, GiroTransaction, WiseTransaction
 from datetime import datetime, timedelta
 from bson import Decimal128, decimal128
 import decimal
@@ -93,6 +93,13 @@ def upsert_cc_transactions(cc_list:list[CCTransaction]):
     check_res_uspert(res)
 
 
+def upsert_giro_transactions(cc_list:list[GiroTransaction]):
+    db = get_db()
+    ops = [ pymongo.UpdateOne({"inputfile": x.inputfile, "index": x.index}, {'$set': x.to_dict()}, upsert=True) for x in cc_list ]
+    res = db["giro_transactions"].bulk_write(ops)
+    check_res_uspert(res)
+
+
 def get_all_depots():
     db = get_db()
     res = db['stock_transactions'].aggregate([
@@ -131,11 +138,11 @@ def get_transactions_wise(currency:str, year:int, action:str):
     return [WiseTransaction(**x) for x in (db["wise_transactions"].find(match,{"_id": 0}).sort("date", 1))]
 
 
-def get_transactions_cc(cardnum:str, year:int, action:str):
-    return get_transactions_cc_range(cardnum, datetime(year, 1, 1), datetime(year, 12, 31), action)
+def get_transactions_cc(cardnum:str, year:int, actionlist:list[str]):
+    return get_transactions_cc_range(cardnum, datetime(year, 1, 1), datetime(year, 12, 31), actionlist)
     
 
-def get_transactions_cc_range(cardnum:str, frm:datetime, to:datetime, action:str):
+def get_transactions_cc_range(cardnum:str, frm:datetime, to:datetime, actionlist:list[str]):
     db = get_db()
     match = {
         'cardnum': cardnum, 
@@ -151,9 +158,38 @@ def get_transactions_cc_range(cardnum:str, frm:datetime, to:datetime, action:str
             }
         ]
     }
-    if action:
-        match["action"] = action
+    if actionlist:
+        match["action"] = { "$in" : actionlist }
     res = [CCTransaction(**x) for x in (db["cc_transactions"].find(match,{"_id": 0}).sort("execution_date", 1))]
+    for trans in res:
+        trans.value = trans.value.to_decimal()
+        trans.foreign_value = trans.foreign_value.to_decimal()
+    return res
+
+
+def get_transactions_giro(account:str, year:int, actionlist:list[str]):
+    return get_transactions_giro_range(account, datetime(year, 1, 1), datetime(year, 12, 31), actionlist)
+
+
+def get_transactions_giro_range(account:str, frm:datetime, to:datetime, actionlist:list[str]):
+    db = get_db()
+    match = {
+        'account': account, 
+        '$and': [
+            {
+                'execution_date': {
+                    '$gte': frm
+                }
+            }, {
+                'execution_date': {
+                    '$lte': to
+                }
+            }
+        ]
+    }
+    if actionlist:
+        match["action"] = { "$in" : actionlist }
+    res = [GiroTransaction(**x) for x in (db["giro_transactions"].find(match,{"_id": 0}).sort("execution_date", 1))]
     for trans in res:
         trans.value = trans.value.to_decimal()
         trans.foreign_value = trans.foreign_value.to_decimal()

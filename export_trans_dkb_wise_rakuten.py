@@ -36,7 +36,7 @@ for t in trans:
     tr = freee_util.Transfer(t.date, debit, credit, t.description + f" {t.amount}EUR @ {rate}")
     freetrans.append(deepcopy(tr))
 
-freee_util.make_xlsx(f"transfer_dkb_wise_{year}.xlsx", freetrans)
+freee_util.make_xlsx(f"mongoexport/transfer_dkb_wise_{year}.xlsx", freetrans)
 
 
 
@@ -82,5 +82,5 @@ for t in trans:
         freee_util.TAX_NA,
         f"{t.transaction_id} fee"))
 
-freee_util.make_xlsx(f"transfer_wise_eur_to_yen_{year}.xlsx", freetrans)
-freee_util.make_xlsx(f"expense_wise_eur_to_yen_fees_{year}.xlsx", transfees)
+freee_util.make_xlsx(f"mongoexport/transfer_wise_eur_to_yen_{year}.xlsx", freetrans)
+freee_util.make_xlsx(f"mongoexport/expense_wise_eur_to_yen_fees_{year}.xlsx", transfees)

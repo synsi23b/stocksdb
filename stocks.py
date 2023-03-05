@@ -191,7 +191,7 @@ class Depot:
         print(f"Overall Profit: {profit:.3f}")
 
     def sales_jpy_by_year(self, year:int):
-        wb = xlsxwriter.Workbook(f'stock_sales_{self.id}_year_{year}.xlsx')
+        wb = xlsxwriter.Workbook(f'mongoexport/stock_sales_{self.id}_year_{year}.xlsx')
         sheet = wb.add_worksheet("sales")
         row = 0
         for sale in self.sales:

@@ -22,11 +22,8 @@ transfer_headers = [
     ]
 
 TAX_NA = "対象外" # Not Applicable
-
-tax = [
-    TAX_NA,      
-]
-
+TAX_EXPORT_SALE = "輸出売返" 
+TAX_PURCHASE = "課対仕入 10%"
 
 @dataclass
 class TransferDetail:
@@ -89,6 +86,8 @@ EXP_COMMISSION_PAID = "支払手数料"
 EXP_OWNER_LOAN = "事業主貸"
 EXP_MISC = "雑費"
 EXP_FX_LOSS = "為替差損"
+EXP_EXPENDIBLES = "消耗品費"
+EXP_COMMUNICATION = "通信費"
 
 @dataclass
 class Expenditure:
@@ -114,11 +113,32 @@ class Expenditure:
         ]
         footer = [ self.remarks ]
         return header + center + footer
-    
+
+
+def expend_private(date, client, account, amount, remarks):
+    return Expenditure(date, client, EXP_OWNER_LOAN, account, amount, TAX_NA, remarks)
+
+
+def expend_fx(date, client, account, amount, remarks):
+    return Expenditure(date, client, EXP_MISC, account, amount, TAX_NA, f"{EXP_FX_LOSS} {remarks}")
+
+
+def expend_purchase(date, client, account, amount, remarks):
+    return Expenditure(date, client, EXP_EXPENDIBLES, account, amount, TAX_PURCHASE, remarks)
+
+
+def expend_communication(date, client, account, amount, remarks):
+    return Expenditure(date, client, EXP_COMMUNICATION, account, amount, TAX_PURCHASE, remarks)
+
+
+def expend_travel(date, client, account, amount, remarks):
+    return Expenditure(date, client, EXP_COMMUNICATION, account, amount, TAX_PURCHASE, remarks)
+
 
 INC_ONWER_LOAN = "事業主借"
 INC_MISC = "雑収入"
 INC_FX_GAIN = "為替差益"
+INC_SALE = "売上高"
 
 @dataclass
 class Income:
@@ -144,3 +164,15 @@ class Income:
         ]
         footer = [ self.remarks ]
         return header + center + footer
+    
+
+def income_sale_export(date, client, account, amount, remarks):
+    return Income(date, client, INC_SALE, account, amount, TAX_EXPORT_SALE, remarks)
+
+
+def income_private(date, client, account, amount, remarks):
+    return Income(date, client, INC_ONWER_LOAN, account, amount, TAX_NA, remarks)
+
+
+def income_fx(date, client, account, amount, remarks):
+    return Income(date, client, INC_MISC, account, amount, TAX_NA, f"{INC_FX_GAIN} {remarks}")
