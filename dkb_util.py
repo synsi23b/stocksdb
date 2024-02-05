@@ -32,6 +32,34 @@ def load_transactions(infile) -> list[dict]:
         # return the contents as list of dicts
         return [x for x in dr]
 
+def load_transactions_cc(infile) -> list[dict]:
+    # with open(infile, "r") as inf:
+    #     dr = DictReader(inf, delimiter=",")
+    #     # read fieldnames and breaking the file pointer
+    #     next(dr)
+    #     # update missing fieldnames
+    #     print("original CSV header: ", dr.fieldnames)
+    #     first, second = None, None
+    #     for i, v in enumerate(dr.fieldnames):
+    #         if v == "":
+    #             if not first:
+    #                 first = (i, "Unit")
+    #             elif not second:
+    #                 second = (i, "Waehrung")
+    #     fnames = dr.fieldnames
+    #     fnames[first[0]] = first[1]
+    #     fnames[second[0]] = second[1]
+    #     dr.fieldnames = fnames
+    #     print("fixed CSV header: ", fnames)
+    with open(infile, "r") as inf:
+        # open the file again and assigne the new header
+        dr = DictReader(inf, delimiter=";")
+        # dr.fieldnames = fnames
+        # ignore the first row because now that is the old header
+        # next(dr)
+        # return the contents as list of dicts
+        return [x for x in dr]
+
 
 def fix_values(trs):
     to_dt(trs, "Wertstellung", "%d.%m.%Y")
@@ -55,7 +83,7 @@ def decode_action(trs):
     for k, v in ACTIONS.items():
         if txt.startswith(k):
             return v
-    if trs["Ursprünglicher Betrag"]:
+    if trs["Urspruenglicher Betrag"]:
         return CCAction.PAY_INTL
     return CCAction.PAY
 
@@ -64,7 +92,7 @@ def convert(trs, card_name:str, filename:str, index:int):
     trs = fix_values(trs)
     action = decode_action(trs)
 
-    urs = trs["Ursprünglicher Betrag"]
+    urs = trs["Urspruenglicher Betrag"]
     foreign_currency = ""
     dic = {"x": "0.0"}
     to_decimal(dic, "x", False)

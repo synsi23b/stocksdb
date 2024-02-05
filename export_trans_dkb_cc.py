@@ -5,13 +5,13 @@ from copy import deepcopy
 from datetime import datetime, timedelta
 from mydataclasses import CCTransaction
 
-year = 2022
+year = 2023
 
 ################################
 # Transfer Settlement DKB CC 9825
 ################################
-starting_date = datetime(year, 1, 1)
-starting_balance = Decimal(-132995)
+starting_date = datetime(year, 1, 21) # set to the first spending to appear
+starting_balance = Decimal(-5433) # set to the balanced carried over from last year
 CARD = "dkb_kredit_4930_9825"
 CREDITACCOUNT = "DKB Credit Card 9825ドイツのクレジットカード"
 balancing = get_transactions_cc(CARD, year, ["balancing"])
@@ -86,6 +86,6 @@ for bal in balancing:
     loop_start_date = accrual + timedelta(days=1)
 
 fname = f"_dkb_cc_{starting_date.date()}-{accrual.date()}.xlsx"
-freee_util.make_xlsx("mongoexport/expend" + fname, spending)
-freee_util.make_xlsx("mongoexport/deposit" + fname, deposits)
-freee_util.make_xlsx(f"mongoexport/cc_balancing_{year}.xlsx", balances)
+freee_util.make_new_xlsx("mongoexport/expend" + fname, spending)
+freee_util.make_new_xlsx("mongoexport/deposit" + fname, deposits)
+freee_util.make_new_xlsx(f"mongoexport/cc_balancing_{year}.xlsx", balances)

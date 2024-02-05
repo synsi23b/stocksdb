@@ -69,6 +69,16 @@ def make_xlsx(filename, itemlist):
         wb.close()
 
 
+def make_new_xlsx(filename, itemlist):
+    if itemlist:
+        wb = xlsxwriter.Workbook(filename)
+        ws = wb.add_worksheet()
+        ws.write_row(0, 0, itemlist[0].get_new_header())
+        for idx, item in enumerate(itemlist):
+            ws.write_row(idx + 1, 0, item.to_new_list())
+        wb.close()
+
+
 expendit_headers = [
     "発生日",        # Accrual Date
     #"決済期日",      # Settlement Date
@@ -79,6 +89,13 @@ expendit_headers = [
     "金額",         # Amount
     "税区分",       # Tax Segment
     "備考",         # Remarks
+]
+
+expendit_new_headers = [
+    "発生日",        # Accrual Date
+    "収支区分",      # category
+    "金額",         # Amount
+    "勘定科目 - 備考 - 取引先",      # reason?
 ]
 
 
@@ -102,6 +119,9 @@ class Expenditure:
     def get_header(self):
         return expendit_headers
 
+    def get_new_header(self):
+        return expendit_new_headers
+
     def to_list(self):
         header = [ self.date.strftime("%Y-%m-%d"), "支出" ]
         center = [
@@ -113,6 +133,14 @@ class Expenditure:
         ]
         footer = [ self.remarks ]
         return header + center + footer
+    
+    def to_new_list(self):
+        return [ 
+            self.date.strftime("%Y-%m-%d"),
+            "支出",
+            -self.amount,
+            f"{self.category} - {self.remarks} - {self.client}"
+        ]
 
 
 def expend_private(date, client, account, amount, remarks):
@@ -153,6 +181,9 @@ class Income:
     def get_header(self):
         return expendit_headers
 
+    def get_new_header(self):
+        return expendit_new_headers
+
     def to_list(self):
         header = [ self.date.strftime("%Y-%m-%d"), "収入" ]
         center = [
@@ -164,6 +195,14 @@ class Income:
         ]
         footer = [ self.remarks ]
         return header + center + footer
+    
+    def to_new_list(self):
+        return [ 
+            self.date.strftime("%Y-%m-%d"),
+            "収入",
+            self.amount,
+            f"{self.category} - {self.remarks} - {self.client}"
+        ]
     
 
 def income_sale_export(date, client, account, amount, remarks):

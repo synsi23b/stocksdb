@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 from mydataclasses import GiroTransaction, GiroAction
 import dkb_giro_util
 
-year = 2022
-closings_start = datetime(2021, 12, 30)
-closings_end = datetime(2022, 12, 31)
+year = 2023
+closings_start = datetime(2023, 4, 3)
+closings_end = datetime(2024, 1, 1)
 
 ################################
 # Transfer dkb_giro_1018533461
@@ -102,4 +102,4 @@ for closing in closings[1:]:
     loop_start_date = accrual + timedelta(days=1)
 
 print(f"Starting balance: {closings[0].foreign_value} {closings[0].foreign_currency}")
-freee_util.make_xlsx(f"mongoexport/giro_transactions_{year}.xlsx", freee_trans)
+freee_util.make_new_xlsx(f"mongoexport/giro_transactions_{year}_b.xlsx", freee_trans)
