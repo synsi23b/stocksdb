@@ -1,4 +1,4 @@
-import xlsxwriter
+import csv
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal
@@ -79,6 +79,14 @@ def make_new_xlsx(filename, itemlist):
         wb.close()
 
 
+def make_new_csv(filename, itemlist):
+    if itemlist:
+        with open(filename, "w", newline='', encoding='utf-8') as of:
+            writer = csv.writer(of)
+            writer.writerow(itemlist[0].get_new_header())
+            writer.writerows([i.to_new_list() for i in itemlist])
+
+
 expendit_headers = [
     "発生日",        # Accrual Date
     #"決済期日",      # Settlement Date
@@ -92,10 +100,10 @@ expendit_headers = [
 ]
 
 expendit_new_headers = [
-    "発生日",        # Accrual Date
-    "収支区分",      # category
-    "金額",         # Amount
-    "勘定科目 - 備考 - 取引先",      # reason?
+    "取引日",        # Accrual Date
+    "入金額",         # Amount
+    "残高",          # remaining balance
+    "取引内容",      # transaction details
 ]
 
 
@@ -115,6 +123,7 @@ class Expenditure:
     amount: Decimal
     tax_segment: str
     remarks: str
+    balance: Decimal
 
     def get_header(self):
         return expendit_headers
@@ -137,30 +146,30 @@ class Expenditure:
     def to_new_list(self):
         return [ 
             self.date.strftime("%Y-%m-%d"),
-            "支出",
             -self.amount,
+            self.balance,
             f"{self.category} - {self.remarks} - {self.client}"
         ]
 
 
-def expend_private(date, client, account, amount, remarks):
-    return Expenditure(date, client, EXP_OWNER_LOAN, account, amount, TAX_NA, remarks)
+def expend_private(date, client, account, amount, remarks, balance):
+    return Expenditure(date, client, EXP_OWNER_LOAN, account, amount, TAX_NA, remarks, balance)
 
 
-def expend_fx(date, client, account, amount, remarks):
-    return Expenditure(date, client, EXP_MISC, account, amount, TAX_NA, f"{EXP_FX_LOSS} {remarks}")
+def expend_fx(date, client, account, amount, remarks, balance):
+    return Expenditure(date, client, EXP_MISC, account, amount, TAX_NA, f"{EXP_FX_LOSS} {remarks}", balance)
 
 
-def expend_purchase(date, client, account, amount, remarks):
-    return Expenditure(date, client, EXP_EXPENDIBLES, account, amount, TAX_PURCHASE, remarks)
+def expend_purchase(date, client, account, amount, remarks, balance):
+    return Expenditure(date, client, EXP_EXPENDIBLES, account, amount, TAX_PURCHASE, remarks, balance)
 
 
-def expend_communication(date, client, account, amount, remarks):
-    return Expenditure(date, client, EXP_COMMUNICATION, account, amount, TAX_PURCHASE, remarks)
+def expend_communication(date, client, account, amount, remarks, balance):
+    return Expenditure(date, client, EXP_COMMUNICATION, account, amount, TAX_PURCHASE, remarks, balance)
 
 
-def expend_travel(date, client, account, amount, remarks):
-    return Expenditure(date, client, EXP_COMMUNICATION, account, amount, TAX_PURCHASE, remarks)
+def expend_travel(date, client, account, amount, remarks, balance):
+    return Expenditure(date, client, EXP_COMMUNICATION, account, amount, TAX_PURCHASE, remarks, balance)
 
 
 INC_ONWER_LOAN = "事業主借"
@@ -177,6 +186,8 @@ class Income:
     amount: Decimal
     tax_segment: str
     remarks: str
+    balance: Decimal
+
 
     def get_header(self):
         return expendit_headers
@@ -199,19 +210,19 @@ class Income:
     def to_new_list(self):
         return [ 
             self.date.strftime("%Y-%m-%d"),
-            "収入",
             self.amount,
+            self.balance,
             f"{self.category} - {self.remarks} - {self.client}"
         ]
     
 
-def income_sale_export(date, client, account, amount, remarks):
-    return Income(date, client, INC_SALE, account, amount, TAX_EXPORT_SALE, remarks)
+def income_sale_export(date, client, account, amount, remarks, balance):
+    return Income(date, client, INC_SALE, account, amount, TAX_EXPORT_SALE, remarks, balance)
 
 
-def income_private(date, client, account, amount, remarks):
-    return Income(date, client, INC_ONWER_LOAN, account, amount, TAX_NA, remarks)
+def income_private(date, client, account, amount, remarks, balance):
+    return Income(date, client, INC_ONWER_LOAN, account, amount, TAX_NA, remarks, balance)
 
 
-def income_fx(date, client, account, amount, remarks):
-    return Income(date, client, INC_MISC, account, amount, TAX_NA, f"{INC_FX_GAIN} {remarks}")
+def income_fx(date, client, account, amount, remarks, balance):
+    return Income(date, client, INC_MISC, account, amount, TAX_NA, f"{INC_FX_GAIN} {remarks}", balance)

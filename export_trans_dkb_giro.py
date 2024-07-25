@@ -4,10 +4,12 @@ from decimal import Decimal
 from datetime import datetime, timedelta
 from mydataclasses import GiroTransaction, GiroAction
 import dkb_giro_util
+from random import choice
+import string
 
-year = 2023
-closings_start = datetime(2023, 4, 3)
-closings_end = datetime(2024, 1, 1)
+year = 2024
+closings_start = datetime(2023, 12, 20)
+closings_end = datetime(2024, 7, 2)
 
 ################################
 # Transfer dkb_giro_1018533461
@@ -33,7 +35,7 @@ def normalize(trans:GiroTransaction) -> GiroTransaction:
     return trans
 
 
-def get_freee_type(trs:GiroTransaction):
+def get_freee_type(trs:GiroTransaction, balance):
     accrual = trs.execution_date
     client = trs.transaction_counterpart
     if trs.action != GiroAction.DEBIT_CARD_PAY_INTL.value:
@@ -53,7 +55,7 @@ def get_freee_type(trs:GiroTransaction):
             func = freee_util.expend_travel
         if client.upper() in PURCHASE:
             func = freee_util.expend_purchase
-    return func(accrual, client, FREEE_ACCOUNT, amount.copy_abs(), remarks)
+    return func(accrual, client, FREEE_ACCOUNT, amount.copy_abs(), remarks, balance)
 
 
 def get_actions_range(frm, to, actionlist):
@@ -77,29 +79,34 @@ for closing in closings[1:]:
     transac = get_actions_range(loop_start_date, accrual, actiontypes)
     for trs in transac:
         value = trs.foreign_value
+        print("Balance: ", running_balance, "Transfer: ", value)
         running_balance += value
-        freee_trans.append(get_freee_type(trs))
+        freee_trans.append(get_freee_type(trs, running_balance))
 
     if closing.foreign_value > running_balance:
         # the foreign balance is smaller than the closing balance
         # FX gain to match the closing balance
         diff = closing.foreign_value - running_balance
+        running_balance = closing.foreign_value
         freee_trans.append(
             freee_util.income_fx(accrual, "", 
                                  FREEE_ACCOUNT, diff, 
-                                 f"Closing quarter with Balance {closing.foreign_value} JPY {closing.value} EUR @ {get_eur2jpy_by_date(accrual)} vs running balance of {running_balance} JPY"))
-        running_balance = closing.foreign_value
+                                 f"Closing quarter with Balance {closing.foreign_value} JPY {closing.value} EUR @ {get_eur2jpy_by_date(accrual)} vs running balance of {running_balance} JPY",
+                                 running_balance))
     elif closing.foreign_value < running_balance:
         # the closing balance is smaller the the foreign closing balance
         # incurred an FX loss
         diff = running_balance - closing.foreign_value
+        running_balance = closing.foreign_value
         freee_trans.append(
             freee_util.expend_fx(accrual, "", 
                                  FREEE_ACCOUNT, diff, 
-                                 f"Closing quarter with Balance {closing.foreign_value} JPY {closing.value} EUR @ {get_eur2jpy_by_date(accrual)} vs running balance of {running_balance} JPY"))
-        running_balance = closing.foreign_value
+                                 f"Closing quarter with Balance {closing.foreign_value} JPY {closing.value} EUR @ {get_eur2jpy_by_date(accrual)} vs running balance of {running_balance} JPY",
+                                 running_balance))
+        
 
     loop_start_date = accrual + timedelta(days=1)
 
 print(f"Starting balance: {closings[0].foreign_value} {closings[0].foreign_currency}")
-freee_util.make_new_xlsx(f"mongoexport/giro_transactions_{year}_b.xlsx", freee_trans)
+now = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
+freee_util.make_new_csv(f"mongoexport/giro_transactions_dkb_{year}_{now}.csv", freee_trans)
