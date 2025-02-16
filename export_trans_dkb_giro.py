@@ -87,23 +87,22 @@ for closing in closings[1:]:
         # the foreign balance is smaller than the closing balance
         # FX gain to match the closing balance
         diff = closing.foreign_value - running_balance
-        running_balance = closing.foreign_value
         freee_trans.append(
             freee_util.income_fx(accrual, "", 
                                  FREEE_ACCOUNT, diff, 
                                  f"Closing quarter with Balance {closing.foreign_value} JPY {closing.value} EUR @ {get_eur2jpy_by_date(accrual)} vs running balance of {running_balance} JPY",
-                                 running_balance))
+                                 closing.foreign_value))
+        running_balance = closing.foreign_value
     elif closing.foreign_value < running_balance:
         # the closing balance is smaller the the foreign closing balance
         # incurred an FX loss
         diff = running_balance - closing.foreign_value
-        running_balance = closing.foreign_value
         freee_trans.append(
             freee_util.expend_fx(accrual, "", 
                                  FREEE_ACCOUNT, diff, 
                                  f"Closing quarter with Balance {closing.foreign_value} JPY {closing.value} EUR @ {get_eur2jpy_by_date(accrual)} vs running balance of {running_balance} JPY",
-                                 running_balance))
-        
+                                 closing.foreign_value))
+        running_balance = closing.foreign_value
 
     loop_start_date = accrual + timedelta(days=1)
 
