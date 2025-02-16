@@ -8,6 +8,7 @@ infile = "dkb_giro_export_1018533461_01.02.2023_02.03.2023.csv"
 infile = "dkb_giro_export_1018533461_01.01.2023_03.04.2023.csv"
 infile = "dkb_giro_1018533461_2023_4_2023_12.csv"
 infile = "dkb_giro_2024_1_6.csv"
+infile = "dkb_giro_export_2024-7_2025-1_Umsatzliste_Girokonto_DE13120300001018533461.csv"
 utf8f = str(Path(infile).stem + "_utf8.csv")
 
 convert_to_utf8(infile, utf8f, 'utf-8-sig')

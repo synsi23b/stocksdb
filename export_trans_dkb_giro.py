@@ -8,8 +8,8 @@ from random import choice
 import string
 
 year = 2024
-closings_start = datetime(2023, 12, 20)
-closings_end = datetime(2024, 7, 2)
+closings_start = datetime(2024, 7, 1)
+closings_end = datetime(2025, 1, 1)
 
 ################################
 # Transfer dkb_giro_1018533461
@@ -45,7 +45,7 @@ def get_freee_type(trs:GiroTransaction, balance):
     amount = trs.foreign_value
     if amount > 0:
         func = freee_util.income_private
-        if client.upper() in EXPORT_SALE:
+        if client.split(" -> " )[0].upper() in EXPORT_SALE:
             func = freee_util.income_sale_export
     else:
         func = freee_util.expend_private
