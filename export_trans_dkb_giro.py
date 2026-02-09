@@ -7,9 +7,9 @@ import dkb_giro_util
 from random import choice
 import string
 
-year = 2024
-closings_start = datetime(2024, 7, 1)
-closings_end = datetime(2025, 1, 1)
+year = 2025
+closings_start = datetime(2024, 12, 25)
+closings_end = datetime(2026, 1, 1)
 
 ################################
 # Transfer dkb_giro_1018533461
@@ -79,7 +79,7 @@ for closing in closings[1:]:
     transac = get_actions_range(loop_start_date, accrual, actiontypes)
     for trs in transac:
         value = trs.foreign_value
-        print("Balance: ", running_balance, "Transfer: ", value)
+        print(trs.execution_date, "Balance:", running_balance, "Transfer:", trs.value, "Eur", value, "Yen")
         running_balance += value
         freee_trans.append(get_freee_type(trs, running_balance))
 
@@ -106,6 +106,6 @@ for closing in closings[1:]:
 
     loop_start_date = accrual + timedelta(days=1)
 
-print(f"Starting balance: {closings[0].foreign_value} {closings[0].foreign_currency}")
+print(f"Starting balance on {closings[0].execution_date}: {closings[0].foreign_value} {closings[0].foreign_currency}")
 now = datetime.now().strftime("%Y_%m_%d_%H_%M_%S")
 freee_util.make_new_csv(f"mongoexport/giro_transactions_dkb_{year}_{now}.csv", freee_trans)

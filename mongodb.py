@@ -189,7 +189,7 @@ def get_transactions_giro_range(account:str, frm:datetime, to:datetime, actionli
     }
     if actionlist:
         match["action"] = { "$in" : actionlist }
-    res = [GiroTransaction(**x) for x in (db["giro_transactions"].find(match,{"_id": 0}).sort("execution_date", 1))]
+    res = [GiroTransaction(**x) for x in (db["giro_transactions"].find(match,{"_id": 0}).sort([("execution_date", 1), ("index", -1)]))]
     for trans in res:
         trans.value = trans.value.to_decimal()
         trans.foreign_value = trans.foreign_value.to_decimal()
